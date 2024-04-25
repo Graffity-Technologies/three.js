@@ -1,77 +1,5 @@
-import { Color, Matrix3, Matrix4, Vector2, Vector3, Vector4 } from 'three';
-import Node from './Node.js';
-
-function getValueType( value ) {
-
-	if ( typeof value === 'number' ) {
-
-		return 'float';
-
-	} else if ( typeof value === 'boolean' ) {
-
-		return 'bool';
-
-	} else if ( value?.isVector2 === true ) {
-
-		return 'vec2';
-
-	} else if ( value?.isVector3 === true ) {
-
-		return 'vec3';
-
-	} else if ( value?.isVector4 === true ) {
-
-		return 'vec4';
-
-	} else if ( value?.isMatrix3 === true ) {
-
-		return 'mat3';
-
-	} else if ( value?.isMatrix4 === true ) {
-
-		return 'mat4';
-
-	} else if ( value?.isColor === true ) {
-
-		return 'color';
-
-	}
-
-	return null;
-
-}
-
-function getValueFromType( type ) {
-
-	if ( type === 'color' ) {
-
-		return new Color();
-
-	} else if ( type === 'vec2' ) {
-
-		return new Vector2();
-
-	} else if ( type === 'vec3' ) {
-
-		return new Vector3();
-
-	} else if ( type === 'vec4' ) {
-
-		return new Vector4();
-
-	} else if ( type === 'mat3' ) {
-
-		return new Matrix3();
-
-	} else if ( type === 'mat4' ) {
-
-		return new Matrix4();
-
-	}
-
-	return null;
-
-}
+import Node, { addNodeClass } from './Node.js';
+import { getValueType, getValueFromType, arrayBufferToBase64 } from './NodeUtils.js';
 
 class InputNode extends Node {
 
@@ -79,7 +7,10 @@ class InputNode extends Node {
 
 		super( nodeType );
 
+		this.isInputNode = true;
+
 		this.value = value;
+		this.precision = null;
 
 	}
 
@@ -101,13 +32,28 @@ class InputNode extends Node {
 
 	}
 
+	setPrecision( precision ) {
+
+		this.precision = precision;
+
+		return this;
+
+	}
+
 	serialize( data ) {
 
 		super.serialize( data );
 
-		data.value = this.value?.toArray?.() || this.value;
+		data.value = this.value;
+
+		if ( this.value && this.value.toArray ) data.value = this.value.toArray();
+
 		data.valueType = getValueType( this.value );
 		data.nodeType = this.nodeType;
+
+		if ( data.valueType === 'ArrayBuffer' ) data.value = arrayBufferToBase64( data.value );
+
+		data.precision = this.precision;
 
 	}
 
@@ -116,19 +62,22 @@ class InputNode extends Node {
 		super.deserialize( data );
 
 		this.nodeType = data.nodeType;
-		this.value = getValueFromType( data.valueType );
-		this.value = this.value?.fromArray?.( data.value ) || data.value;
+		this.value = Array.isArray( data.value ) ? getValueFromType( data.valueType, ...data.value ) : data.value;
+
+		this.precision = data.precision || null;
+
+		if ( this.value && this.value.fromArray ) this.value = this.value.fromArray( data.value );
 
 	}
 
 	generate( /*builder, output*/ ) {
 
-		console.warn('Abstract function.');
+		console.warn( 'Abstract function.' );
 
 	}
 
 }
 
-InputNode.prototype.isInputNode = true;
-
 export default InputNode;
+
+addNodeClass( 'InputNode', InputNode );
